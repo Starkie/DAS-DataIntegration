@@ -1,0 +1,13 @@
+root = true
+
+[*]
+charset = utf-8
+indent_style = space
+trim_trailing_whitespace = true
+insert_final_newline = false
+
+[*.{cs,xaml}]
+indent_size = 4
+
+[*.{xml, csproj}]
+indent_size = 2
