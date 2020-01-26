@@ -1,10 +1,11 @@
-﻿namespace DataLoader
+namespace DataLoader
 {
     using System;
     using System.Globalization;
     using System.IO;
     using CsvHelper;
     using DataLoader.Entities;
+    using DataLoader.Persistence;
     using McMaster.Extensions.CommandLineUtils;
 
     class Program
@@ -28,6 +29,7 @@
         {
             using StreamReader streamReader = new StreamReader(usersFilePath);
             using CsvReader csvReader = new CsvReader(streamReader, CultureInfo.InvariantCulture);
+            using DataLoaderContext context = new DataLoaderContext();
 
             csvReader.Configuration.HasHeaderRecord = true;
             csvReader.Configuration.AllowComments = true;
@@ -48,7 +50,13 @@
                     Country = country,
                     RegistrationDate = registrationDate,
                 };
+
+                Console.WriteLine($"READ: {user.Id} - Gender: {user.Gender} Age: {user.Age} Country: {user.Country} RegistrationDate: {user.RegistrationDate}");
+
+                context.Users.Add(user);
             }
+
+            context.SaveChanges();
         }
 
         public static Gender ParseGender(string genderValue)
