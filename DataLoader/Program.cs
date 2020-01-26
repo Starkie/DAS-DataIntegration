@@ -1,4 +1,4 @@
-namespace DataLoader
+﻿namespace DataLoader
 {
     using System;
     using System.Globalization;
@@ -34,6 +34,7 @@ namespace DataLoader
 
             csvReader.Configuration.HasHeaderRecord = true;
             csvReader.Configuration.AllowComments = true;
+            csvReader.Configuration.Delimiter = "\t";
 
             while (csvReader.Read())
             {
