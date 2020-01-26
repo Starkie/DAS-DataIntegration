@@ -30,6 +30,7 @@ namespace DataLoader
             using StreamReader streamReader = new StreamReader(usersFilePath);
             using CsvReader csvReader = new CsvReader(streamReader, CultureInfo.InvariantCulture);
             using DataLoaderContext context = new DataLoaderContext();
+            context.Database.EnsureCreated();
 
             csvReader.Configuration.HasHeaderRecord = true;
             csvReader.Configuration.AllowComments = true;
