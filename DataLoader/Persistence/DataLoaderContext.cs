@@ -16,5 +16,9 @@ namespace DataLoader.Persistence
         }
 
         public DbSet<User> Users { get; set; }
+
+        public DbSet<Artist> Artists { get; set; }
+
+        public DbSet<UserArtistPlays> UserArtistPlays { get; set; }
     }
 }
