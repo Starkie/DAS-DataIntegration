@@ -40,7 +40,7 @@ namespace DataLoader
                 Gender gender = ParseGender(csvReader.GetField(1));
                 bool ageParseSucceeded = !int.TryParse(csvReader.GetField(2), out int age);
                 string country = csvReader.GetField(3);
-                DateTime registrationDate = DateTime.ParseExact(csvReader.GetField(4), "MMM d, yyyy", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal);
+                bool registrationDateParseSuccess = DateTime.TryParseExact(csvReader.GetField(4), "MMM d, yyyy", CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out DateTime registrationDate);
 
                 User user = new User
                 {
