@@ -1,4 +1,4 @@
-﻿namespace DataLoader
+namespace DataLoader
 {
     using System;
     using System.Globalization;
@@ -93,6 +93,13 @@
 
                 if (artist == null)
                 {
+                    artist = context.ChangeTracker.Entries()
+                        .Where(x => x.State == EntityState.Added && x.Entity.GetType().Name == "Artist")
+                        .Select(x => x.Entity as Artist)
+                        .FirstOrDefault(a => a.Id == artistId);
+
+                if (artist == null)
+                {
                     artist = new Artist
                     {
                     Id = artistId,
@@ -100,9 +107,7 @@
                     };
 
                     context.Artists.Add(artist);
-
-                    // Save changes to avoid conflict with change tracker values.
-                    context.SaveChanges();
+                    }
                 }
 
                 UserArtistPlays userArtistPlays = new UserArtistPlays
