@@ -1,4 +1,4 @@
-namespace DataLoader
+﻿namespace DataLoader
 {
     using System;
     using System.Globalization;
@@ -81,6 +81,8 @@ namespace DataLoader
                 Console.WriteLine($"BAD RECORD - {context.RawRecord}");
             };
 
+            int i = 0;
+
             while (csvReader.Read())
             {
                 string userId = csvReader.GetField(0);
@@ -98,15 +100,15 @@ namespace DataLoader
                         .Select(x => x.Entity as Artist)
                         .FirstOrDefault(a => a.Id == artistId);
 
-                if (artist == null)
-                {
-                    artist = new Artist
+                    if (artist == null)
                     {
-                    Id = artistId,
-                    Name = artistName,
-                    };
+                        artist = new Artist
+                        {
+                        Id = artistId,
+                        Name = artistName,
+                        };
 
-                    context.Artists.Add(artist);
+                        context.Artists.Add(artist);
                     }
                 }
 
@@ -120,6 +122,13 @@ namespace DataLoader
                 Console.WriteLine($"READ: {userArtistPlays.User.Id} - ArtistName: {userArtistPlays.Artist.Name} Plays: {userArtistPlays.PlaysNumber}");
 
                 context.UserArtistPlays.Add(userArtistPlays);
+
+                i++;
+
+                if (i % 1000 == 0)
+                {
+                    context.SaveChanges();
+                }
             }
 
             context.SaveChanges();
