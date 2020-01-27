@@ -81,35 +81,47 @@
                 Console.WriteLine($"BAD RECORD - {context.RawRecord}");
             };
 
-            int i = 0;
+            uint i = 0, currentUserStoredSongs = 0;
+            User user = context.Users.FirstOrDefault();
 
             while (csvReader.Read())
             {
                 string userId = csvReader.GetField(0);
+                long.TryParse(csvReader.GetField(3), out long userArtistPlaysNumber);
                 string artistId = csvReader.GetField(1);
                 string artistName = csvReader.GetField(2);
-                long.TryParse(csvReader.GetField(3), out long userArtistPlaysNumber);
 
-                User user = context.Users.FirstOrDefault(u => u.Id == userId);
-                Artist artist = context.Artists.FirstOrDefault(a => a.Id == artistId);
+                if (user.Id != userId)
+                {
+                    user = context.Users.FirstOrDefault(u => u.Id == userId);
+                    currentUserStoredSongs = 0;
+                }
+
+                // Only the top 10 listened artists of each user are stored.
+                if (currentUserStoredSongs >= 10)
+                {
+                    continue;
+                }
+
+                Artist artist = context.ChangeTracker.Entries()
+                    .Where(x => x.State == EntityState.Added && x.Entity.GetType().Name == "Artist")
+                    .Select(x => x.Entity as Artist)
+                    .FirstOrDefault(a => a.Id == artistId);
 
                 if (artist == null)
                 {
-                    artist = context.ChangeTracker.Entries()
-                        .Where(x => x.State == EntityState.Added && x.Entity.GetType().Name == "Artist")
-                        .Select(x => x.Entity as Artist)
-                        .FirstOrDefault(a => a.Id == artistId);
+                    artist = context.Artists.FirstOrDefault(a => a.Id == artistId);
+                }
 
-                    if (artist == null)
+                if (artist == null)
+                {
+                    artist = new Artist
                     {
-                        artist = new Artist
-                        {
-                        Id = artistId,
-                        Name = artistName,
-                        };
+                    Id = artistId,
+                    Name = artistName,
+                    };
 
-                        context.Artists.Add(artist);
-                    }
+                    context.Artists.Add(artist);
                 }
 
                 UserArtistPlays userArtistPlays = new UserArtistPlays
@@ -119,14 +131,16 @@
                     PlaysNumber = userArtistPlaysNumber,
                 };
 
-                Console.WriteLine($"READ: {userArtistPlays.User.Id} - ArtistName: {userArtistPlays.Artist.Name} Plays: {userArtistPlays.PlaysNumber}");
+                // Console.WriteLine($"READ: {userArtistPlays.User.Id} - ArtistName: {userArtistPlays.Artist.Name} Plays: {userArtistPlays.PlaysNumber}");
 
                 context.UserArtistPlays.Add(userArtistPlays);
+                currentUserStoredSongs++;
 
                 i++;
 
-                if (i % 1000 == 0)
+                if (i % 10000 == 0)
                 {
+                    Console.WriteLine($"Saving Changes... {i / 17559530}%. ");
                     context.SaveChanges();
                 }
             }
