@@ -1,4 +1,4 @@
-﻿namespace DataLoader
+namespace DataLoader
 {
     using System;
     using System.Globalization;
@@ -23,7 +23,7 @@
             app.OnExecute(() =>
             {
                 LoadUsersToDatabase(usersFileOption.Value);
-                LoadUserArtistsPlaysToDatabase(userArtistPlaysFileOption.Value);
+                LoadUserArtistsPlaysCsvToDatabase(userArtistPlaysFileOption.Value);
             });
 
             return app.Execute(args);
@@ -65,7 +65,7 @@
             context.SaveChanges();
         }
 
-        private static void LoadUserArtistsPlaysToDatabase(string userArtistPlaysFilePath)
+        private static void LoadUserArtistsPlaysCsvToDatabase(string userArtistPlaysFilePath)
         {
             using StreamReader streamReader = new StreamReader(userArtistPlaysFilePath);
             using CsvReader csvReader = new CsvReader(streamReader, CultureInfo.InvariantCulture);
@@ -81,66 +81,37 @@
                 Console.WriteLine($"BAD RECORD - {context.RawRecord}");
             };
 
-            uint i = 0, currentUserStoredSongs = 0;
+            uint i = 0, createdRegistries = 0;
             User user = context.Users.FirstOrDefault();
 
             while (csvReader.Read())
             {
+                // Increase the read registiries counter.
+                i++;
+
                 string userId = csvReader.GetField(0);
                 long.TryParse(csvReader.GetField(3), out long userArtistPlaysNumber);
                 string artistId = csvReader.GetField(1);
                 string artistName = csvReader.GetField(2);
 
-                if (user.Id != userId)
+                UserPlaysCsv userPlaysCsv = new UserPlaysCsv
                 {
-                    user = context.Users.FirstOrDefault(u => u.Id == userId);
-                    currentUserStoredSongs = 0;
-                }
-
-                // Only the top 10 listened artists of each user are stored.
-                if (currentUserStoredSongs >= 10)
-                {
-                    continue;
-                }
-
-                Artist artist = context.ChangeTracker.Entries()
-                    .Where(x => x.State == EntityState.Added && x.Entity.GetType().Name == "Artist")
-                    .Select(x => x.Entity as Artist)
-                    .FirstOrDefault(a => a.Id == artistId);
-
-                if (artist == null)
-                {
-                    artist = context.Artists.FirstOrDefault(a => a.Id == artistId);
-                }
-
-                if (artist == null)
-                {
-                    artist = new Artist
-                    {
-                    Id = artistId,
-                    Name = artistName,
-                    };
-
-                    context.Artists.Add(artist);
-                }
-
-                UserArtistPlays userArtistPlays = new UserArtistPlays
-                {
-                    Artist = artist,
-                    User = user,
-                    PlaysNumber = userArtistPlaysNumber,
+                    Id = i,
+                    UserId = userId,
+                    ArtistId = artistId,
+                    ArtistName = artistName,
+                    Plays = userArtistPlaysNumber,
                 };
 
                 // Console.WriteLine($"READ: {userArtistPlays.User.Id} - ArtistName: {userArtistPlays.Artist.Name} Plays: {userArtistPlays.PlaysNumber}");
 
-                context.UserArtistPlays.Add(userArtistPlays);
-                currentUserStoredSongs++;
+                context.UserPlaysCsvs.Add(userPlaysCsv);
 
-                i++;
+                createdRegistries++;
 
-                if (i % 10000 == 0)
+                if (createdRegistries % 10000 == 0)
                 {
-                    Console.WriteLine($"Saving Changes... {i / 17559530}%. ");
+                    Console.WriteLine($"Saving Changes... {(i / 17559530.0) * 100:0.00}%  {i}/{17559530.0} rows. ");
                     context.SaveChanges();
                 }
             }
