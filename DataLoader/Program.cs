@@ -23,10 +23,18 @@ namespace DataLoader
 
             app.OnExecute(() =>
             {
+                // 1. Load the User entities to the database.
                 LoadUsersToDatabase(usersFileOption.Value);
+
+                // 2. Load the UserArtistPlaysCsv to the database, without any FK restriction,
+                // so it goes faster.
                 LoadUserArtistsPlaysCsvToDatabase(userArtistPlaysFileOption.Value);
+
+                // 3. From the UserArtistPlaysCsv, read the artists and create them.
                 LoadArtists();
-                LoadArtistsAndUserPlays();
+
+                // 4. Using the created Users and Artists, load the User Plays registries to the database.
+                LoadUserPlays();
             });
 
             return app.Execute(args);
@@ -162,7 +170,7 @@ namespace DataLoader
             context.SaveChanges();
         }
 
-        private static void LoadArtistsAndUserPlays()
+        private static void LoadUserPlays()
         {
             using DataLoaderContext context = new DataLoaderContext();
 
