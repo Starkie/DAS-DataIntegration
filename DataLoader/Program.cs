@@ -1,6 +1,7 @@
 namespace DataLoader
 {
     using System;
+    using System.Collections.Generic;
     using System.Globalization;
     using System.IO;
     using System.Linq;
@@ -25,6 +26,7 @@ namespace DataLoader
                 LoadUsersToDatabase(usersFileOption.Value);
                 LoadUserArtistsPlaysCsvToDatabase(userArtistPlaysFileOption.Value);
                 LoadArtists();
+                LoadArtistsAndUserPlays();
             });
 
             return app.Execute(args);
@@ -154,6 +156,50 @@ namespace DataLoader
                 {
                     Console.WriteLine($"Saving Changes... {(i / 11500000.0) * 100:0.000}%  {i}/{11500000.0} rows. ");
                     context.SaveChanges();
+                }
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void LoadArtistsAndUserPlays()
+        {
+            using DataLoaderContext context = new DataLoaderContext();
+
+            int i = 0, createdRegistries = 0;
+
+            Dictionary<string, User> users = context.Users.ToDictionary(item => item.Id, item => item);
+            Dictionary<string, Artist> artists = context.Artists.ToDictionary(item => item.Id, item => item);
+
+            var userPlays = context.UserPlaysCsvs.AsNoTracking()
+                .Where(upc => !string.IsNullOrEmpty(upc.UserId) && !string.IsNullOrEmpty(upc.ArtistId))
+                .OrderByDescending(upc => upc.Plays)
+                .AsEnumerable()
+                .GroupBy(upc => upc.UserId);
+
+            foreach (var up in userPlays)
+            {
+                // Increase the read registries counter.
+                i += up.Count();
+
+                // Take only the 10 most played artists.
+                foreach (var userPlay in up.Take(10))
+                {
+                    context.UserArtistPlays.Add(new UserArtistPlays
+                    {
+                        User = users[userPlay.UserId],
+                            Artist = artists[userPlay.ArtistId],
+                            PlaysNumber = userPlay.Plays,
+                    });
+
+                    createdRegistries++;
+                }
+
+                if (createdRegistries % 1000 == 0)
+                {
+                    context.SaveChanges();
+
+                    Console.WriteLine($"Saving Changes... {(i / 11500000.0) * 100:0.000}%  {i}/{11500000.0} rows. ");
                 }
             }
 
