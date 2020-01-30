@@ -24,6 +24,7 @@ namespace DataLoader
             {
                 LoadUsersToDatabase(usersFileOption.Value);
                 LoadUserArtistsPlaysCsvToDatabase(userArtistPlaysFileOption.Value);
+                LoadArtists();
             });
 
             return app.Execute(args);
@@ -112,6 +113,46 @@ namespace DataLoader
                 if (createdRegistries % 10000 == 0)
                 {
                     Console.WriteLine($"Saving Changes... {(i / 17559530.0) * 100:0.00}%  {i}/{17559530.0} rows. ");
+                    context.SaveChanges();
+                }
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void LoadArtists()
+        {
+            using DataLoaderContext context = new DataLoaderContext();
+
+            int i = 0, createdRegistries = 0;
+
+            IQueryable<UserPlaysCsv> userPlaysCsvs = context.UserPlaysCsvs.AsNoTracking();
+
+            var uniqueArtistRecords = userPlaysCsvs
+                .Where(a => a.ArtistName != null)
+                .AsEnumerable()
+                .GroupBy(upc => upc.ArtistId);
+
+            foreach (var uar in uniqueArtistRecords)
+            {
+                // Increase the read registries counter.
+                i += uar.Count();
+
+                var artistRecord = uar.FirstOrDefault();
+
+                Artist artist = new Artist
+                {
+                    Id = artistRecord.ArtistId,
+                    Name = artistRecord.ArtistName,
+                };
+
+                context.Artists.Add(artist);
+
+                createdRegistries++;
+
+                if (createdRegistries % 10000 == 0)
+                {
+                    Console.WriteLine($"Saving Changes... {(i / 11500000.0) * 100:0.000}%  {i}/{11500000.0} rows. ");
                     context.SaveChanges();
                 }
             }
