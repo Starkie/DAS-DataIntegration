@@ -20,5 +20,7 @@ namespace DataLoader.Persistence
         public DbSet<Artist> Artists { get; set; }
 
         public DbSet<UserArtistPlays> UserArtistPlays { get; set; }
+
+        public DbSet<UserPlaysCsv> UserPlaysCsvs { get; set; }
     }
 }

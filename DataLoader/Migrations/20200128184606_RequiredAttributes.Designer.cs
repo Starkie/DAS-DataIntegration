@@ -3,14 +3,16 @@ using System;
 using DataLoader.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 namespace DataLoader.Migrations
 {
     [DbContext(typeof(DataLoaderContext))]
-    partial class DataLoaderContextModelSnapshot : ModelSnapshot
+    [Migration("20200128184606_RequiredAttributes")]
+    partial class RequiredAttributes
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
