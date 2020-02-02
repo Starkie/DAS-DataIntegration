@@ -76,6 +76,21 @@ namespace DataLoader
             context.SaveChanges();
         }
 
+        private static Gender ParseGender(string genderValue)
+        {
+            if (genderValue.Equals("m", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return Gender.MALE;
+            }
+
+            if (genderValue.Equals("f", StringComparison.InvariantCultureIgnoreCase))
+            {
+                return Gender.FEMALE;
+            }
+
+            return Gender.UNKNOWN;
+        }
+
         private static void LoadUserArtistsPlaysCsvToDatabase(string userArtistPlaysFilePath)
         {
             using StreamReader streamReader = new StreamReader(userArtistPlaysFilePath);
@@ -212,21 +227,6 @@ namespace DataLoader
             }
 
             context.SaveChanges();
-        }
-
-        public static Gender ParseGender(string genderValue)
-        {
-            if (genderValue.Equals("m", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return Gender.MALE;
-            }
-
-            if (genderValue.Equals("f", StringComparison.InvariantCultureIgnoreCase))
-            {
-                return Gender.FEMALE;
-            }
-
-            return Gender.UNKNOWN;
         }
     }
 }
