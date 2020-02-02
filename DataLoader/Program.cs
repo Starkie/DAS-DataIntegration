@@ -10,6 +10,9 @@ namespace DataLoader
     using DataLoader.Persistence;
     using McMaster.Extensions.CommandLineUtils;
     using Microsoft.EntityFrameworkCore;
+    using Newtonsoft.Json;
+    using Newtonsoft.Json.Linq;
+    using JsonSerializer = Newtonsoft.Json.JsonSerializer;
 
     class Program
     {
@@ -224,6 +227,74 @@ namespace DataLoader
 
                     Console.WriteLine($"Saving Changes... {(i / 11500000.0) * 100:0.000}%  {i}/{11500000.0} rows. ");
                 }
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void LoadArtistGenreJson(string artistsFilePath)
+        {
+            using DataLoaderContext context = new DataLoaderContext();
+
+            // Get the artists ordered by their play number.
+            IEnumerable<Artist> artists = context.Artists
+                .FromSqlInterpolated(
+                    $@"SELECT A.Id, A.Name, A.Genre
+                    FROM Artists A, UserArtistPlays UAP
+                    WHERE A.Id = UAP.ArtistId
+                    GROUP BY UAP.ArtistId
+                    ORDER BY SUM(UAP.PlaysNumber) DESC")
+                .ToList();
+
+            using StreamReader streamReader = new StreamReader(artistsFilePath);
+            using var jsonReader = new JsonTextReader(streamReader);
+            jsonReader.SupportMultipleContent = true;
+
+            JsonSerializer serializer = new JsonSerializer();
+
+            int updatedArtists = 0;
+
+            while (jsonReader.Read())
+            {
+                JObject jObject = (JObject)serializer.Deserialize(jsonReader);
+
+                string artistName = jObject.GetValue("name")
+                    .Value<string>()
+                    .ToUpperInvariant();
+
+                IEnumerable<JToken> genres = jObject.GetValue("genres")?.Values();
+
+                if (genres?.Any() != true)
+                {
+                    continue;
+                }
+
+                string genreName = genres.FirstOrDefault()
+                    .Children()
+                    .FirstOrDefault()
+                    .Value<string>();
+
+                Artist artist = artists
+                    .Where(a => artistName.Equals(a.Name.ToUpperInvariant()))
+                    .FirstOrDefault(a => a.Genre == null);
+
+                if (artist == null)
+                {
+                    continue;
+                }
+
+                artist.Genre = genreName;
+                Console.WriteLine($"Artist: {artistName}\t Genre: {genreName}");
+
+                updatedArtists++;
+
+                if (updatedArtists % 100 == 0)
+                {
+                    Console.WriteLine($"Saving changes... Updated Artist entries: {updatedArtists}");
+
+                    context.SaveChanges();
+                }
+
             }
 
             context.SaveChanges();
