@@ -20,7 +20,34 @@ userPlaysClean <- userPlaysClean[complete.cases(userPlaysClean),]
 columns <- c("Gender", "AgeInterval", "PlaysNumber", "Genre")
 minableview <- userPlaysClean[,columns]
 
-# Group genres by age interval.
+##############################################
+# 1. TOP GENRES.
+##############################################
+topGenres <- minableview[,c("Genre","PlaysNumber")]
+
+topGenres <- group_by(topGenres, Genre)
+topGenresPlays <- summarise(topGenres, totalPlays = sum(PlaysNumber))
+
+# Get percentage of total.
+# From https://stackoverflow.com/a/27135129
+topGenresPlays <- topGenresPlays %>% mutate(percent = totalPlays/sum(totalPlays))
+topGenresPlays <- topGenresPlays[order(-topGenresPlays$percent),]
+
+# Transform to factor to keep the plot ordered.
+# FROM: https://stackoverflow.com/a/20041311
+topGenresPlays$Genre <- factor(topGenresPlays$Genre, levels = topGenresPlays$Genre)
+
+png("topGenres-by-popularity.png", height=750, width=1000)
+
+ggplot(topGenresPlays, aes(x= Genre, y=percent)) + geom_bar(stat="identity", fill="steelblue") +
+    theme_minimal(base_size=15) +
+    ggtitle("Genres by popularity") + theme(plot.title = element_text(hjust = 0.5), axis.text.x = element_text(size=10))
+
+dev.off()
+
+##############################################
+# 2. GENRES BY AGE.
+##############################################
 genre_by_age <- group_by(minableview, AgeInterval, Genre)
 aggregatedGenre_by_age <- summarise(genre_by_age, totalPlays = sum(PlaysNumber))
 
@@ -44,6 +71,7 @@ write.csv2(topGenreByAge, 'top_genre_by_age.csv')
 
 mycolors <- colorRampPalette(brewer.pal(8, "Accent"))(15)
 
+# Plot genres by age
 png("topGenres-by-age.png", height=750, width=1000)
 
 ggplot(aggregatedGenre_by_age, aes(x= AgeInterval, y=percent, fill=Genre)) + geom_col() +
