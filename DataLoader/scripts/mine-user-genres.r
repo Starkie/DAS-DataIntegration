@@ -42,7 +42,7 @@ topGenreByAge <- Reduce(rbind, by(aggregatedGenre_by_age, aggregatedGenre_by_age
 # Write to disk.
 write.csv2(topGenreByAge, 'top_genre_by_age.csv')
 
-mycolors <- colorRampPalette(brewer.pal(11, "Spectral"))(15)
+mycolors <- colorRampPalette(brewer.pal(8, "Accent"))(15)
 
 png("topGenres-by-age.png", height=750, width=1000)
 
