@@ -5,6 +5,9 @@ namespace DataLoader
     using System.Globalization;
     using System.IO;
     using System.Linq;
+    using System.Text.RegularExpressions;
+    using System.Xml;
+    using System.Xml.Linq;
     using CsvHelper;
     using DataLoader.Entities;
     using DataLoader.Persistence;
@@ -23,6 +26,7 @@ namespace DataLoader
 
             CommandArgument usersFileOption = app.Argument("-u|--usersFile", "The path to the CSV file containing the user data.");
             CommandArgument userArtistPlaysFileOption = app.Argument("-p|--userArtistPlaysFile", "The path to the CSV file containing the user - artist plays data.");
+            CommandArgument artistsFileOption = app.Argument("-a|--artistsFile", "The path to the JSON file containing the artists data.");
 
             app.OnExecute(() =>
             {
@@ -36,8 +40,8 @@ namespace DataLoader
                 // 3. From the UserArtistPlaysCsv, read the artists and create them.
                 LoadArtists();
 
-                // 4. Using the created Users and Artists, load the User Plays registries to the database.
-                LoadUserPlays();
+                // 5. Load Artists Genre.
+                LoadArtistGenreXml(artistsFileOption.Value);
             });
 
             return app.Execute(args);
@@ -295,6 +299,110 @@ namespace DataLoader
                     context.SaveChanges();
                 }
 
+            }
+
+            context.SaveChanges();
+        }
+
+        private static void LoadArtistGenreXml(string artistsFilePath)
+        {
+            using DataLoaderContext context = new DataLoaderContext();
+
+            // Get the artists ordered by their play number.
+            IEnumerable<Artist> artists = context.Artists
+                .FromSqlInterpolated(
+                    $@"SELECT A.Id, A.Name, A.Genre
+                    FROM Artists A, UserArtistPlays UAP
+                    WHERE A.Id = UAP.ArtistId
+                    GROUP BY UAP.ArtistId
+                    ORDER BY SUM(UAP.PlaysNumber) DESC")
+                .ToList();
+
+            Dictionary < long, (string artistName, Dictionary<string, int> genresFrequency) > mappedArtistGenres = new Dictionary < long, (string artistName, Dictionary<string, int> genresFrequency) > ();
+
+            using XmlReader xmlReader = XmlReader.Create(artistsFilePath);
+            xmlReader.MoveToContent();
+
+            int updatedArtists = 0;
+
+            Regex duplicateArtistNamePattern = new Regex(@".*\(\d+\)$", RegexOptions.Compiled);
+
+            while (xmlReader.Read())
+            {
+                if (!(xmlReader.NodeType == XmlNodeType.Element &&
+                        xmlReader.Name == "release"))
+                {
+                    continue;
+                }
+
+                XElement element = XNode.ReadFrom(xmlReader)as XElement;
+                var children = element.Descendants();
+
+                XElement artistElement = children.FirstOrDefault(n => n.Name == "artist");
+                string artistId = artistElement.Element("id")?.Value;
+                string artistName = artistElement.Element("name")?.Value;
+
+                if (duplicateArtistNamePattern.IsMatch(artistName))
+                {
+                    int startOfDuplicate = artistName.LastIndexOf('(');
+                    artistName = artistName.Substring(0, startOfDuplicate).Trim();
+                }
+
+                mappedArtistGenres.TryGetValue(long.Parse(artistId), out(string artistName, Dictionary<string, int> genresFrequency)artistMapping);
+
+                if (artistMapping == default)
+                {
+                    artistMapping = (artistName, new Dictionary<string, int>());
+                    mappedArtistGenres[long.Parse(artistId)] = artistMapping;
+                }
+
+                XElement genres = children?.FirstOrDefault(n => n.Name == "genres");
+
+                // Some releases might not have genre.
+                if (genres == null)
+                {
+                    continue;
+                }
+
+                foreach (XElement genre in genres.Descendants())
+                {
+                    string genreName = genre.Value;
+                    artistMapping.genresFrequency.TryGetValue(genreName, out int freq);
+                    artistMapping.genresFrequency[genreName] = ++freq;
+                }
+            }
+
+            // We assume that the artists that have more releases are the ones most listened to in Last.Fm.
+            var orderedMappedArtistsByFrequency = mappedArtistGenres
+                .OrderByDescending(mag => mag.Value.genresFrequency
+                    .Sum(gf => gf.Value));
+
+            foreach (var artistGenresMapping in orderedMappedArtistsByFrequency)
+            {
+                Artist artist = artists
+                    .Where(a => a.Name.Equals(artistGenresMapping.Value.artistName, StringComparison.InvariantCultureIgnoreCase))
+                    .FirstOrDefault(a => a.Genre == null);
+
+                if (artist == null)
+                {
+                    continue;
+                }
+
+                // Get the most frequent genre of the artist.
+                var genresOrdered = artistGenresMapping.Value.genresFrequency
+                    .OrderByDescending(gf => gf.Value);
+
+                KeyValuePair<string, int> mostFrequentGenre = genresOrdered.FirstOrDefault();
+                artist.Genre = mostFrequentGenre.Key;
+
+                updatedArtists++;
+
+                if (updatedArtists % 100 == 0)
+                {
+                    Console.WriteLine($"Saving changes... Updated Artist entries: {updatedArtists}");
+
+                    context.SaveChanges();
+                }
             }
 
             context.SaveChanges();
